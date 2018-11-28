@@ -2,7 +2,7 @@ package cbtgo
 
 import "time"
 
-type SeleniumHistory struct {
+type TestHistory struct {
 	Meta struct {
 		RecordCount uint   `json:"record_count"`
 		Source      string `json:"mongodb"`
@@ -29,21 +29,21 @@ type SeleniumHistory struct {
 			TestScore string `json:"test_score"`
 		} `json:"searchParams"`
 	} `json:"meta"`
-	SeleniumTests []SeleniumTest `json:"selenium"`
+	Tests []Test `json:"selenium"`
 }
 
-// Merge the Selenium tests of SeleniumHistory B into SeleniumHistoryA
-func (a *SeleniumHistory) Merge(b *SeleniumHistory) {
-	mergeset := make([]SeleniumTest, 0)
-	for _, btest := range b.SeleniumTests {
-		for i, atest := range a.SeleniumTests {
+// Merge the  tests of B into A
+func (a *TestHistory) Merge(b *TestHistory) {
+	mergeset := make([]Test, 0)
+	for _, btest := range b.Tests {
+		for i, atest := range a.Tests {
 			if atest.SessionID == btest.SessionID {
 				if atest.Active != btest.Active {
 					// If btest is the only active one, then A is newer.  Keep it.
 					if btest.Active {
 						continue
 					} else {
-						a.SeleniumTests[i] = btest
+						a.Tests[i] = btest
 					}
 				}
 			} else {
@@ -51,5 +51,5 @@ func (a *SeleniumHistory) Merge(b *SeleniumHistory) {
 			}
 		}
 	}
-	a.SeleniumTests = append(a.SeleniumTests, mergeset...)
+	a.Tests = append(a.Tests, mergeset...)
 }

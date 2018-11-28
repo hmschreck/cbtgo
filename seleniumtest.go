@@ -10,7 +10,7 @@ import (
 const API_GET_SELENIUM_TEST = "/selenium/%d"
 const API_SET_SELENIUM_SCORE = "/selenium/%d"
 
-type SeleniumTest struct {
+type Test struct {
 	TestID                   uint64          `json:"selenium_test_id,omitempty"`
 	SessionID                string          `json:"selenium_session_id,omitempty"`
 	StartDate                time.Time       `json:"start_date,omitempty"`
@@ -49,7 +49,7 @@ type SeleniumTest struct {
 	Commands                 []Command       `json:"commands,omitempty"`
 }
 
-func (test *SeleniumTest) CommandsEmpty() bool {
+func (test *Test) CommandsEmpty() bool {
 	if len(test.Commands) == 0 {
 		return true
 	} else {
@@ -57,7 +57,7 @@ func (test *SeleniumTest) CommandsEmpty() bool {
 	}
 }
 
-func (api *CBTAPI) GetTest(testID int) (selenium_test *SeleniumTest, errout error) {
+func (api *CBTAPI) GetTest(testID int) (selenium_test *Test, errout error) {
 	apiCall, err := api.Client.R().Get(APIEndpoints["GetSeleniumTest"])
 	if err != nil {
 		errout = err
@@ -66,7 +66,7 @@ func (api *CBTAPI) GetTest(testID int) (selenium_test *SeleniumTest, errout erro
 	if apiCall.StatusCode() != 200 {
 		errout = errors.New("Received bad response from CBT")
 	}
-	selenium_test = new(SeleniumTest)
+	selenium_test = new(Test)
 	body := apiCall.Body()
 	err = json.Unmarshal(body, &selenium_test)
 	if err != nil {
@@ -80,7 +80,7 @@ func (api *CBTAPI) GetTest(testID int) (selenium_test *SeleniumTest, errout erro
 	return selenium_test, nil
 }
 
-func (test *SeleniumTest) SetTest(action string, set string) error {
+func (test *Test) SetTest(action string, set string) error {
 	api := CreateNewAPIClient()
 	endpoint := fmt.Sprintf(APIEndpoints["SetScore"], test.TestID)
 	if !(action == "set_score" || action == "set_description") {
@@ -106,7 +106,7 @@ func (test *SeleniumTest) SetTest(action string, set string) error {
 	return nil
 }
 
-func (test *SeleniumTest) SetScore(score string) error {
+func (test *Test) SetScore(score string) error {
 	test.TestScore = score
 	return test.SetTest("set_score", score)
 }
@@ -114,16 +114,16 @@ func StopSeleniumTest(testID uint64) error {
 	return StopTest("selenium", testID)
 }
 
-func (test *SeleniumTest) Stop() error {
+func (test *Test) Stop() error {
 	return StopSeleniumTest(test.TestID)
 }
-func (test *SeleniumTest) SetDescription(description string) error {
+func (test *Test) SetDescription(description string) error {
 	test.Description = description
 	return test.SetTest("set_description", description)
 }
 
 // Get all videos associated with a given test
-func (test SeleniumTest) GetVideos() error {
+func (test Test) GetVideos() error {
 	for _, video := range test.Videos {
 		err := video.Get(fmt.Sprintf("%sselenium/%d/", downloadPath, test.TestID))
 		if err != nil {

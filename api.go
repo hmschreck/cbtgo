@@ -18,6 +18,7 @@ type CBTAPI struct {
 }
 
 var APIEndpoints = map[string]string{
+	"GetTestHistory" : API_ROOT + "/%s",
 	"GetTest":  API_ROOT + "/%s/%d",
 	"SetScore": API_ROOT + "/%s/%d",
 	"StopTest": API_ROOT + "/%s/%d",
@@ -25,6 +26,10 @@ var APIEndpoints = map[string]string{
 	"SetSnapshot" : API_ROOT + "/%s/%d/snapshot/%s",
 	"RecordVideo" : API_ROOT + "/%s/%d/videos",
 	"StopVideo" : API_ROOT + "/%s/%d/videos/%s",
+	"SetVideoDescription" : API_ROOT + "/%s/%d/videos/%s",
+	"RecordNetworkPackets": API_ROOT + "/%s/%d/networks",
+	"StopNetworkRecord": API_ROOT + "/%s/%d/networks/%s",
+	"SetNetworkDescription" : API_ROOT + "/%s/%d/networks/%s",
 }
 
 // Set library-wide download location
@@ -103,5 +108,41 @@ func StopVideo(testType string, testID uint64, hash string) (errout error) {
 	api := CreateNewAPIClient()
 	endpoint := fmt.Sprintf(APIEndpoints["StopVideo"], testType, testID, hash)
 	_, err := api.Client.R().Delete(endpoint)
+	return err
+}
+
+func SetVideoDescription(testType string, testID uint64, hash string, description string) (error) {
+	api := CreateNewAPIClient()
+	endpoint := fmt.Sprintf(APIEndpoints["SetVideoDescription"], testType, testID, hash)
+	_, err := api.Client.SetQueryParam("description", description).R().Put(endpoint)
+	return err
+}
+
+func RecordNetworkPackets(testType string, testID uint64) (network *Network, errout error) {
+	network = new(Network)
+	api := CreateNewAPIClient()
+	endpoint := fmt.Sprint(APIEndpoints["RecordNetworkPackets"], testType, testID)
+	response, err := api.Client.R().Post(endpoint)
+	if err != nil {
+		errout = err
+		return
+	}
+	errout = json.Unmarshal(response.Body(), &network)
+	network.TestID = testID
+	network.TestType = testType
+	return
+}
+
+func StopNetworkPackets(testType string, testID uint64, hash string) error {
+	api := CreateNewAPIClient()
+	endpoint := fmt.Sprintf(APIEndpoints["StopNetworkRecord"], testType, testID, hash)
+	_, err := api.Client.R().Delete(endpoint)
+	return err
+}
+
+func SetNetworkDescription(testType string, testID uint64, hash string, description string) error {
+	api := CreateNewAPIClient()
+	endpoint := fmt.Sprintf(APIEndpoints["SetNetworkDescription"], testType, testID, hash)
+	_, err := api.Client.SetQueryParam("description", description).R().Put(endpoint)
 	return err
 }

@@ -2,6 +2,7 @@ package cbtgo
 
 import (
 	"fmt"
+	"github.com/pkg/errors"
 	"io"
 	"net/http"
 	"os"
@@ -52,5 +53,16 @@ func (video *Video) Get(path string) error {
 }
 
 func (video *Video) Stop() error {
+	if video.TestID == 0 || video.TestType == "" {
+		return errors.New("This video object does not have the information to perform a stop.")
+	}
 	return StopVideo(video.TestType, video.TestID, video.Hash)
+}
+
+func (video *Video) SetDescription(description string) error {
+	video.Description = description
+	if video.TestID == 0 || video.TestType == "" {
+		return errors.New("This video object does not have the information to perform a stop")
+	}
+	return SetVideoDescription(video.TestType, video.TestID, video.Hash, video.Description)
 }

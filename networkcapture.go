@@ -1,6 +1,9 @@
 package cbtgo
 
-import "time"
+import (
+	"github.com/pkg/errors"
+	"time"
+)
 
 type Network struct {
 	Hash                string    `json:"hash"`
@@ -12,4 +15,22 @@ type Network struct {
 	ShowResultPublicUrl string    `json:"show_result_public_url"`
 	PCAP                string    `json:"pcap"`
 	HAR                 string    `json:"har"`
+	TestID uint64
+	TestType string
+}
+
+
+func (network *Network) Stop() error{
+	if network.TestType == "" || network.TestID == 0 {
+		return errors.New("Do not have all the necessary information to stop the record.")
+	}
+	return StopNetworkPackets(network.TestType, network.TestID, network.Hash)
+}
+
+func (network *Network) SetDescription(description string) error {
+	network.Description = description
+	if network.TestType == "" || network.TestID == 0 {
+		return errors.New("Do not have all the necessary information to stop the record.")
+	}
+	return SetNetworkDescription(network.TestType, network.TestID, network.Hash, description)
 }
