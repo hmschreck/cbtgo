@@ -5,13 +5,16 @@ import (
 	"errors"
 	"fmt"
 	"time"
+	"os"
 )
 
 const API_GET_SELENIUM_TEST = "/selenium/%d"
 const API_SET_SELENIUM_SCORE = "/selenium/%d"
 
 type Test struct {
-	TestID                   uint64          `json:"selenium_test_id,omitempty"`
+	TestID uint64
+	LiveTestID 	uint64 `json:"live_test_id,omitempty"`
+	SeleniumTestID                   uint64          `json:"selenium_test_id,omitempty"`
 	SessionID                string          `json:"selenium_session_id,omitempty"`
 	StartDate                time.Time       `json:"start_date,omitempty"`
 	FinishDate               time.Time       `json:"finish_date,omitempty"`
@@ -29,7 +32,7 @@ type Test struct {
 	ClientBrowser            string          `json:"client_browser,omitempty"`
 	UseCopyrect              bool            `json:"use_copyrect,omitempty"`
 	Scale                    string          `json:"scale,omitempty"`
-	NetworkCapture           bool            `json:"is_packet_capturing,omitempty"`
+	NetworkCaptureOn           int            `json:"is_packet_capturing,omitempty"`
 	Description              string          `json:"description,omitempty"`
 	Tags                     []string        `json:"tags,omitempty"`
 	ShowResultUrl            string          `json:"show_result_web_url,omitempty"`
@@ -47,6 +50,8 @@ type Test struct {
 	Archived                 bool            `json:"archived,omitempty"`
 	TunnelID                 int             `json:"tunnel_id,omitempty"`
 	Commands                 []Command       `json:"commands,omitempty"`
+	NetworkCaptures			[]Network `json:"networks"`
+	TestType string
 }
 
 func (test *Test) CommandsEmpty() bool {
@@ -124,13 +129,109 @@ func (test *Test) SetDescription(description string) error {
 
 // Get all videos associated with a given test
 func (test Test) GetVideos() error {
+	fmt.Println(test.TestID)
 	for _, video := range test.Videos {
-		err := video.Get(fmt.Sprintf("%sselenium/%d/", downloadPath, test.TestID))
+		fmt.Println("Getting video: ", video.Hash)
+		err := video.Get(fmt.Sprintf("%s%s/%d/videos/", DownloadPath, test.TestType, test.TestID))
 		if err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func (test Test) GetSnapshots() error {
+	fmt.Println(test.TestID)
+	for _, snapshot := range test.Snapshots {
+		fmt.Println("Getting snapshot: ", snapshot.Hash)
+		err := snapshot.Get(fmt.Sprintf("%s%s/%d/snapshots/", DownloadPath, test.TestType, test.TestID))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (test Test) GetHARs() error {
+	fmt.Println(test.TestID)
+	for _, network := range test.NetworkCaptures {
+		fmt.Println("Getting HAR: ", network.Hash)
+		err := network.Get(fmt.Sprintf("%s%s/%d/hars/", DownloadPath, test.TestType, test.TestID))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (test Test) GetPCAPs() error {
+	fmt.Println(test.TestID)
+	for _, network := range test.NetworkCaptures {
+		fmt.Println("Getting HAR: ", network.Hash)
+		err := network.GetPcap(fmt.Sprintf("%s%s/%d/pcaps/", DownloadPath, test.TestType, test.TestID))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+
+func (test *Test) GetVideoData() error {
+	api := CreateNewAPIClient()
+	endpoint := fmt.Sprintf(APIEndpoints["GetVideoInfo"], test.TestType, test.TestID)
+	body, err := api.Client.R().Get(endpoint)
+	if err != nil {
+		return err
+	}
+	err = json.Unmarshal(body.Body(), test.Videos)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (test *Test) WriteCommands() error {
+	if test.TestType != "selenium" {
+		return errors.New("Is not a selenium test")
+	}
+	test, err := test.UpdateCommands()
+	if err != nil {
+		return err
+	}
+	err = os.MkdirAll(fmt.Sprintf("%s%s/%d/", DownloadPath, test.TestType, test.TestID), 0755)
+	if err != nil {
+		return err
+	}
+	outfile := fmt.Sprintf("%s%s/%d/commands.json", DownloadPath, test.TestType, test.TestID)
+	if _, err = os.Stat(outfile); !os.IsNotExist(err) {
+		return nil
+	}
+	file, err := os.Create(outfile)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	fmt.Println(test.Commands)
+	jsonString, err := json.Marshal(test.Commands)
+	fmt.Println(jsonString)
+	if err != nil {
+		return err
+	}
+	_, err = file.Write(jsonString)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (test *Test) UpdateCommands() (testUpdate *Test, errout error){
+	testUpdate, err := GetTest(test.TestType, test.TestID)
+	if err != nil {
+		errout = err
+		return
+	}
+	return testUpdate, nil
 }
 
 

@@ -4,12 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/go-resty/resty"
+	"time"
 )
 
-var username = ""
-var authkey = ""
+var Username = ""
+var Authkey = ""
 
-var downloadPath = ""
+var DownloadPath = ""
+const MAX_RESULTS = 2500
 
 const API_ROOT = "https://crossbrowsertesting.com/api/v3"
 
@@ -30,25 +32,26 @@ var APIEndpoints = map[string]string{
 	"RecordNetworkPackets": API_ROOT + "/%s/%d/networks",
 	"StopNetworkRecord": API_ROOT + "/%s/%d/networks/%s",
 	"SetNetworkDescription" : API_ROOT + "/%s/%d/networks/%s",
+	"GetVideoInfo": API_ROOT + "/%s/%d/videos",
 }
 
 // Set library-wide download location
 func SetDownload(path string) {
-	downloadPath = path
+	DownloadPath = path
 }
 
 // Set library-wide authentication options (this is more or less required)
 func SetUpAuth(setUsername, setAuthkey string) {
-	username = setUsername
-	authkey = setAuthkey
+	Username = setUsername
+	Authkey = setAuthkey
 }
 
 // Create new API client
 func CreateNewAPIClient() *CBTAPI {
 	api := new(CBTAPI)
-	client := new(resty.Client)
-	client.SetBasicAuth(username, authkey)
-	client.SetQueryParam("format", "json")
+	client := resty.New()
+	client = client.SetBasicAuth(Username, Authkey)
+	client = client.SetQueryParam("format", "json")
 	api.Client = *client
 	return api
 }
@@ -145,4 +148,88 @@ func SetNetworkDescription(testType string, testID uint64, hash string, descript
 	endpoint := fmt.Sprintf(APIEndpoints["SetNetworkDescription"], testType, testID, hash)
 	_, err := api.Client.SetQueryParam("description", description).R().Put(endpoint)
 	return err
+}
+
+func GetTestHistory(testType string, num int, start int) (testhistory *TestHistory, errout error) {
+	api := CreateNewAPIClient()
+	testhistory = new(TestHistory)
+	stringNum := fmt.Sprintf("%d", num)
+	stringStart := fmt.Sprintf("%d", start)
+	endpoint := fmt.Sprintf(APIEndpoints["GetTestHistory"], testType)
+	response, err := api.Client.R().
+		SetQueryParam("num", stringNum).
+		SetQueryParam("start", stringStart).
+		Get(endpoint)
+	if err != nil {
+		errout = err
+		return
+	}
+	err = json.Unmarshal(response.Body(), &testhistory)
+
+	if testhistory.SeleniumTests == nil {
+		testhistory.Tests = testhistory.LiveTests
+		testhistory.LiveTests = nil
+	} else if testhistory.LiveTests == nil {
+		testhistory.Tests = testhistory.SeleniumTests
+		testhistory.SeleniumTests = nil
+	}	
+	for i, test := range testhistory.Tests {
+		test.TestType = testType
+		if test.SeleniumTestID ==  0{
+			test.TestID = test.LiveTestID
+		} else if test.LiveTestID == 0 {
+			test.TestID = test.SeleniumTestID
+		}
+		testhistory.Tests[i] = test
+	}
+	return testhistory, err
+}
+
+func GetCompleteTestHistory(testType string) (testhistoryfull *TestHistory, errout error) {
+	start := 0
+	num := 25
+	currentCount := 1
+	testhistory, err := GetTestHistory(testType, num, start)
+	if err != nil {
+		errout = err
+		return
+	}
+	currentCount = testhistory.Meta.RecordCount
+	testhistoryfull = testhistory
+	start = start + num
+	for {
+
+		fmt.Println(len(testhistoryfull.Tests))
+		if start >= currentCount || start >= MAX_RESULTS {
+			break
+		}
+		newhistory, err := GetTestHistory(testType, num, start)
+		if err != nil {
+			errout = err
+			return
+		}
+		testhistoryfull.Merge(newhistory)
+		start = start + num
+		time.Sleep(1 * time.Millisecond)
+	}
+	return
+}
+
+func GetTest(testType string, testID uint64) (test *Test, errout error) {
+	api := CreateNewAPIClient()
+	test = new(Test)
+	endpoint := fmt.Sprintf(APIEndpoints["GetTest"], testType, testID)
+	response, err := api.Client.R().Get(endpoint)
+	if err != nil {
+		errout = err
+		return
+	}
+	err = json.Unmarshal(response.Body(), &test)
+	if err != nil {
+		errout = err
+		return
+	}
+	test.TestID = testID
+	test.TestType = testType
+	return test, nil
 }

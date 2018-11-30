@@ -1,14 +1,18 @@
 package cbtgo
 
-import "time"
+import (
+	"time"
+	"fmt"
+)
 
 type TestHistory struct {
 	Meta struct {
-		RecordCount uint   `json:"record_count"`
+		RecordCount int   `json:"record_count"`
 		Source      string `json:"mongodb"`
 		Paging      struct {
 			Count int `json:"num"`
 			Start int `json:"start"`
+			NextStart int
 		}
 		SearchParams struct {
 			Active     bool   `json:"active"`
@@ -29,27 +33,59 @@ type TestHistory struct {
 			TestScore string `json:"test_score"`
 		} `json:"searchParams"`
 	} `json:"meta"`
-	Tests []Test `json:"selenium"`
+	SeleniumTests []Test `json:"selenium"`
+	LiveTests []Test `json:"livetests"`
+	Tests []Test
+	TestType string
 }
 
 // Merge the  tests of B into A
 func (a *TestHistory) Merge(b *TestHistory) {
-	mergeset := make([]Test, 0)
-	for _, btest := range b.Tests {
-		for i, atest := range a.Tests {
-			if atest.SessionID == btest.SessionID {
-				if atest.Active != btest.Active {
-					// If btest is the only active one, then A is newer.  Keep it.
-					if btest.Active {
-						continue
-					} else {
-						a.Tests[i] = btest
-					}
-				}
-			} else {
-				mergeset = append(mergeset, btest)
-			}
-		}
-	}
-	a.Tests = append(a.Tests, mergeset...)
+	a.Tests = append(a.Tests, b.Tests...)
 }
+
+func (history *TestHistory) GetAllVideos() {
+	count := 0
+	for _, test := range history.Tests {
+		count += 1
+		fmt.Println(count)
+		test.GetVideos()
+	}
+}
+
+func (history *TestHistory) GetAllSnapshots() {
+	count := 0
+	for _, test := range history.Tests {
+		count += 1
+		fmt.Println(count)
+		test.GetSnapshots()
+	}
+}
+
+func (history *TestHistory) GetAllHARs() {
+	count := 0
+	for _, test := range history.Tests {
+		count += 1
+		fmt.Println(count)
+		test.GetHARs()
+	}
+}
+
+func (history *TestHistory) GetAllPCAPs() {
+	count := 0
+	for _, test := range history.Tests {
+		count += 1
+		fmt.Println(count)
+		test.GetPCAPs()
+	}
+}
+
+func (history *TestHistory) WriteAllCommands() {
+	count := 0
+	for _, test := range history.Tests {
+		count += 1
+		fmt.Println(count)
+		test.WriteCommands()
+	}
+}
+
